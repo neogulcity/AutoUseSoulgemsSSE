@@ -95,20 +95,18 @@ public:
 					const auto& [count, entry] = data;
 					if (count > 0 && item == rObj && entry->IsWorn()) {
 						IsEnchanted = entry->IsEnchanted() ? true : false;
-
-						auto ench = rObj->As<RE::TESEnchantableForm>();
-						if (ench && ench->amountofEnchantment != 0)
-							MAXcharge = static_cast<float>(ench->amountofEnchantment);
-
 						auto extraLists = entry->extraLists;
 						if (extraLists) {
 							for (auto& xList : *extraLists) {
 								if (xList) {
 									if (xList->HasType(RE::ExtraDataType::kWorn)) {
+										auto ench = rObj->As<RE::TESEnchantableForm>();
+										if (ench && ench->amountofEnchantment != 0)
+											MAXcharge = static_cast<float>(ench->amountofEnchantment);
+
 										auto xEnch = xList->GetByType<RE::ExtraEnchantment>();
 										if (xEnch && xEnch->enchantment && xEnch->charge != 0)
 											MAXcharge = static_cast<float>(xEnch->charge);
-
 									}
 								}
 							}
@@ -137,44 +135,13 @@ public:
 						}
 					}
 
-					bool IsAzuraUsed = false;
-					RE::TESBoundObject* UsingSoulgem;
-					RE::SOUL_LEVEL UsingSoulLevel;
-					if (a_SoulgemStar.size() > 0) {
-						if (IniValue.bUseAzuraFisrt) {
-							IsAzuraUsed = true;
-							UsingSoulgem = a_SoulgemStar[0].first;
-							UsingSoulLevel = a_SoulgemStar[0].second;
+					RE::TESBoundObject* UsingSoulgem = nullptr;
+					RE::SOUL_LEVEL UsingSoulLevel = RE::SOUL_LEVEL::kNone;
 
-							if (IniValue.bMessage) {
-								char message[64];
-								std::string temp = UsingSoulgem->GetName();
-								temp = temp + " Used";
-								strcpy_s(message, temp.c_str());
-								RE::DebugNotification(message);
-							}
+					if (a_SoulgemStar.size() > 0 && !IniValue.bUseAzuraFisrt)
+						a_Soulgem.push_back(a_SoulgemStar[0]);
 
-							akAggressor->RemoveItem(UsingSoulgem, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-							float modvalue = SoulValue.kSoulValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
-							modvalue = rCharge + modvalue > MAXcharge ? MAXcharge - rCharge : modvalue;
-
-							akAggressor->ModActorValue(RE::ActorValue::kRightItemCharge, modvalue);
-
-							float expvalue = SoulValue.kExpValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
-							playerref->AddSkillExperience(RE::ActorValue::kEnchanting, expvalue);
-
-							auto a_vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-							if (!a_vm)
-								return RE::BSEventNotifyControl::kContinue;
-
-							AddItem(a_vm, akAggressor, UsingSoulgem, 1, true);
-						} else {
-							a_Soulgem.push_back(a_SoulgemStar[0]);
-						}
-					}
-
-					if (!IsAzuraUsed && a_Soulgem.size() > 0) {
+					if (a_Soulgem.size() > 0) {
 						if (IniValue.bUseLowestFirst) {
 							sort(a_Soulgem.begin(), a_Soulgem.end(), [](auto& lhs, auto& rhs) {
 								if (lhs.second == rhs.second)
@@ -188,14 +155,21 @@ public:
 								return lhs.second > rhs.second;
 							});
 						}
+					}
 
+					if (a_SoulgemStar.size() > 0 && IniValue.bUseAzuraFisrt) {
+						UsingSoulgem = a_SoulgemStar[0].first;
+						UsingSoulLevel = a_SoulgemStar[0].second;
+					} else if (a_Soulgem.size() > 0) {
 						UsingSoulgem = a_Soulgem[0].first;
 						UsingSoulLevel = a_Soulgem[0].second;
+					}
 
+					if (UsingSoulgem) {
 						if (IniValue.bMessage) {
 							char message[64];
 							std::string temp = UsingSoulgem->GetName();
-							temp = temp + " Used";
+							temp = "Soulgem Used : " + temp;
 							strcpy_s(message, temp.c_str());
 							RE::DebugNotification(message);
 						}
@@ -209,6 +183,14 @@ public:
 
 						float expvalue = SoulValue.kExpValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
 						playerref->AddSkillExperience(RE::ActorValue::kEnchanting, expvalue);
+
+						if (UsingSoulgem == AzuraStar || UsingSoulgem == BlackStar) {
+							auto a_vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+							if (!a_vm)
+								return RE::BSEventNotifyControl::kContinue;
+
+							AddItem(a_vm, akAggressor, UsingSoulgem, 1, true);
+						}
 					}
 				}
 			}
@@ -228,19 +210,19 @@ public:
 					const auto& [count, entry] = data;
 					if (count > 0 && item == lObj && entry->IsWorn()) {
 						IsEnchanted = entry->IsEnchanted() ? true : false;
-
-						auto ench = rObj->As<RE::TESEnchantableForm>();
-						if (ench && ench->amountofEnchantment != 0)
-							MAXcharge = static_cast<float>(ench->amountofEnchantment);
-
 						auto extraLists = entry->extraLists;
 						if (extraLists) {
 							for (auto& xList : *extraLists) {
 								if (xList) {
 									if (xList->HasType(RE::ExtraDataType::kWornLeft)) {
+										auto ench = lObj->As<RE::TESEnchantableForm>();
+										if (ench && ench->amountofEnchantment != 0)
+											MAXcharge = static_cast<float>(ench->amountofEnchantment);
+
 										auto xEnch = xList->GetByType<RE::ExtraEnchantment>();
 										if (xEnch && xEnch->enchantment && xEnch->charge != 0)
 											MAXcharge = static_cast<float>(xEnch->charge);
+
 									}
 								}
 							}
@@ -269,44 +251,13 @@ public:
 						}
 					}
 
-					bool IsAzuraUsed = false;
-					RE::TESBoundObject* UsingSoulgem;
-					RE::SOUL_LEVEL UsingSoulLevel;
-					if (a_SoulgemStar.size() > 0) {
-						if (IniValue.bUseAzuraFisrt) {
-							IsAzuraUsed = true;
-							UsingSoulgem = a_SoulgemStar[0].first;
-							UsingSoulLevel = a_SoulgemStar[0].second;
+					RE::TESBoundObject* UsingSoulgem = nullptr;
+					RE::SOUL_LEVEL UsingSoulLevel = RE::SOUL_LEVEL::kNone;
 
-							if (IniValue.bMessage) {
-								char message[64];
-								std::string temp = UsingSoulgem->GetName();
-								temp = temp + " Used";
-								strcpy_s(message, temp.c_str());
-								RE::DebugNotification(message);
-							}
+					if (a_SoulgemStar.size() > 0 && !IniValue.bUseAzuraFisrt)
+						a_Soulgem.push_back(a_SoulgemStar[0]);
 
-							akAggressor->RemoveItem(UsingSoulgem, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-							float modvalue = SoulValue.kSoulValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
-							modvalue = lCharge + modvalue > MAXcharge ? MAXcharge - lCharge : modvalue;
-
-							akAggressor->ModActorValue(RE::ActorValue::kLeftItemCharge, modvalue);
-
-							float expvalue = SoulValue.kExpValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
-							playerref->AddSkillExperience(RE::ActorValue::kEnchanting, expvalue);
-
-							auto a_vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-							if (!a_vm)
-								return RE::BSEventNotifyControl::kContinue;
-
-							AddItem(a_vm, akAggressor, UsingSoulgem, 1, true);
-						} else {
-							a_Soulgem.push_back(a_SoulgemStar[0]);
-						}
-					}
-
-					if (!IsAzuraUsed && a_Soulgem.size() > 0) {
+					if (a_Soulgem.size() > 0) {
 						if (IniValue.bUseLowestFirst) {
 							sort(a_Soulgem.begin(), a_Soulgem.end(), [](auto& lhs, auto& rhs) {
 								if (lhs.second == rhs.second)
@@ -320,14 +271,21 @@ public:
 								return lhs.second > rhs.second;
 							});
 						}
+					}
 
+					if (a_SoulgemStar.size() > 0 && IniValue.bUseAzuraFisrt) {
+						UsingSoulgem = a_SoulgemStar[0].first;
+						UsingSoulLevel = a_SoulgemStar[0].second;
+					} else if (a_Soulgem.size() > 0) {
 						UsingSoulgem = a_Soulgem[0].first;
 						UsingSoulLevel = a_Soulgem[0].second;
+					}
 
+					if (UsingSoulgem) {
 						if (IniValue.bMessage) {
 							char message[64];
 							std::string temp = UsingSoulgem->GetName();
-							temp = temp + " Used";
+							temp = "Soulgem Used : " + temp;
 							strcpy_s(message, temp.c_str());
 							RE::DebugNotification(message);
 						}
@@ -341,6 +299,14 @@ public:
 
 						float expvalue = SoulValue.kExpValue[static_cast<uint32_t>(UsingSoulLevel) - 1];
 						playerref->AddSkillExperience(RE::ActorValue::kEnchanting, expvalue);
+
+						if (UsingSoulgem == AzuraStar || UsingSoulgem == BlackStar) {
+							auto a_vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+							if (!a_vm)
+								return RE::BSEventNotifyControl::kContinue;
+
+							AddItem(a_vm, akAggressor, UsingSoulgem, 1, true);
+						}
 					}
 				}
 			}
